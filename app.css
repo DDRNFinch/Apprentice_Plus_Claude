@@ -18,3 +18,10 @@
 .prompt-head>span:nth-child(2){font-size:16px;text-transform:none}
 .install-note{min-height:20px;margin:12px 2px 0;color:#087061;font-weight:800}
 @media(max-width:430px){.nav button{font-size:10px}.nav .ico{font-size:22px}.nav{gap:3px;padding-left:4px;padding-right:4px}}
+
+/* Build 1.4 full photographic skill description */
+.photo-full-description{margin:12px 0 14px;padding:15px 16px;border:1px solid #cce5de;border-radius:18px;background:linear-gradient(145deg,#f4fcf9,#eaf8f3);color:var(--ink)}
+.photo-full-description b{display:block;margin-bottom:7px;color:#087061;font-size:14px}
+.photo-full-description p{margin:0;line-height:1.5;font-size:15px;white-space:normal;overflow-wrap:anywhere}
+.chooser-help{margin:4px 2px 8px}
+.modal-card{max-height:90vh;overflow-y:auto}
