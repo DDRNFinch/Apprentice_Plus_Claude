@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trade Academy Quiz Slideshow</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #4CAF50;
+            transition: width 0.3s ease;
+        }
+
+        .content {
+            padding: 40px 30px;
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .question-number {
+            color: #667eea;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .ksb-tag {
+            display: inline-block;
+            background: #f0f0f0;
+            color: #667eea;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        .question-text {
+            font-size: 22px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 30px;
+            line-height: 1.4;
+        }
+
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .option-btn {
+            padding: 16px 20px;
+            border: 2px solid #ddd;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            text-align: left;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .option-btn:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+            transform: translateX(5px);
+        }
+
+        .option-btn.selected {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .option-btn.correct {
+            background: #4CAF50;
+            color: white;
+            border-color: #4CAF50;
+        }
+
+        .option-btn.incorrect {
+            background: #f44336;
+            color: white;
+            border-color: #f44336;
+        }
+
+        .option-btn:disabled {
+            cursor: not-allowed;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+            justify-content: space-between;
+        }
+
+        button {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-next {
+            background: #667eea;
+            color: white;
+            flex: 1;
+        }
+
+        .btn-next:hover:not(:disabled) {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-next:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .btn-back {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-back:hover:not(:disabled) {
+            background: #e0e0e0;
+        }
+
+        .btn-back:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .summary {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .summary h2 {
+            font-size: 28px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .summary p {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        .score-circle {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            font-weight: bold;
+            margin: 20px auto;
+        }
+
+        .trade-select {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .trade-btn {
+            padding: 20px;
+            border: 2px solid #ddd;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-transform: capitalize;
+        }
+
+        .trade-btn:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .level-select {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .level-btn {
+            padding: 12px;
+            border: 2px solid #ddd;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .level-btn:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Trade Selection Screen -->
+        <div id="tradeScreen" class="screen">
+            <div class="header">
+                <h1>Trade Academy Quiz</h1>
+                <p>Select a Trade to Begin</p>
+            </div>
+            <div class="content">
+                <div class="trade-select" id="tradeList"></div>
+            </div>
+        </div>
+
+        <!-- Level Selection Screen -->
+        <div id="levelScreen" class="screen hidden">
+            <div class="header">
+                <h1 id="selectedTrade"></h1>
+                <p>Select a Module Level</p>
+            </div>
+            <div class="content">
+                <div class="level-select" id="levelList"></div>
+                <button class="btn-back" onclick="goBackToTrades()">Back</button>
+            </div>
+        </div>
+
+        <!-- Quiz Screen -->
+        <div id="quizScreen" class="screen hidden">
+            <div class="header">
+                <h1>Trade Academy Quiz</h1>
+                <p id="quizTitle"></p>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+            </div>
+            <div class="content">
+                <div class="question-number" id="questionNumber"></div>
+                <div class="ksb-tag" id="ksbTag"></div>
+                <div class="question-text" id="questionText"></div>
+                <div class="options" id="optionsContainer"></div>
+                <div class="button-group">
+                    <button class="btn-back" id="btnBack" onclick="previousQuestion()">Back</button>
+                    <button class="btn-next" id="btnNext" onclick="nextQuestion()" disabled>Next Question</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Screen -->
+        <div id="summaryScreen" class="screen hidden">
+            <div class="header">
+                <h1>Quiz Complete!</h1>
+                <p id="summaryTitle"></p>
+            </div>
+            <div class="content summary">
+                <div class="score-circle" id="scoreCircle"></div>
+                <h2>Your Score</h2>
+                <p id="scoreText"></p>
+                <button class="btn-next" onclick="location.reload()">Start Over</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="academy-questions.js"></script>
+    <script>
+        let currentTrade = null;
+        let currentLevel = null;
+        let currentQuestion = 0;
+        let score = 0;
+        let questions = [];
+        let answered = new Set();
+
+        function goBackToTrades() {
+            document.getElementById('tradeScreen').classList.remove('hidden');
+            document.getElementById('levelScreen').classList.add('hidden');
+            currentTrade = null;
+        }
+
+        function initTrades() {
+            const tradeList = document.getElementById('tradeList');
+            const trades = Object.keys(window.ACADEMY_QUESTION_BANK);
+            
+            trades.forEach(trade => {
+                const btn = document.createElement('button');
+                btn.className = 'trade-btn';
+                btn.textContent = trade;
+                btn.onclick = () => selectTrade(trade);
+                tradeList.appendChild(btn);
+            });
+        }
+
+        function selectTrade(trade) {
+            currentTrade = trade;
+            document.getElementById('tradeScreen').classList.add('hidden');
+            document.getElementById('levelScreen').classList.remove('hidden');
+            document.getElementById('selectedTrade').textContent = trade.toUpperCase();
+            
+            showLevels(trade);
+        }
+
+        function showLevels(trade) {
+            const levelList = document.getElementById('levelList');
+            levelList.innerHTML = '';
+            const levels = Object.keys(window.ACADEMY_QUESTION_BANK[trade]);
+            
+            levels.forEach(level => {
+                const btn = document.createElement('button');
+                btn.className = 'level-btn';
+                btn.textContent = 'Module ' + level;
+                btn.onclick = () => startQuiz(trade, level);
+                levelList.appendChild(btn);
+            });
+        }
+
+        function startQuiz(trade, level) {
+            currentTrade = trade;
+            currentLevel = level;
+            questions = window.ACADEMY_QUESTION_BANK[trade][level];
+            currentQuestion = 0;
+            score = 0;
+            answered.clear();
+            
+            document.getElementById('levelScreen').classList.add('hidden');
+            document.getElementById('quizScreen').classList.remove('hidden');
+            document.getElementById('quizTitle').textContent = `${trade.toUpperCase()} - Module ${level}`;
+            
+            loadQuestion();
+        }
+
+        function loadQuestion() {
+            const question = questions[currentQuestion];
+            
+            document.getElementById('questionNumber').textContent = 
+                `Question ${currentQuestion + 1} of ${questions.length}`;
+            document.getElementById('ksbTag').textContent = question.ksb;
+            document.getElementById('questionText').textContent = question.q;
+            
+            const optionsContainer = document.getElementById('optionsContainer');
+            optionsContainer.innerHTML = '';
+            
+            question.options.forEach((option, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.textContent = option;
+                btn.onclick = () => selectOption(index, btn);
+                optionsContainer.appendChild(btn);
+            });
+            
+            updateProgress();
+            updateButtonStates();
+        }
+
+        function selectOption(index, btn) {
+            const allButtons = document.querySelectorAll('.option-btn');
+            
+            allButtons.forEach(b => b.disabled = true);
+            
+            if (question.answer !== undefined && index === question.answer) {
+                btn.classList.add('correct');
+                score++;
+            } else {
+                btn.classList.add('incorrect');
+                if (question.answer !== undefined) {
+                    allButtons[question.answer].classList.add('correct');
+                }
+            }
+            
+            answered.add(currentQuestion);
+            updateButtonStates();
+        }
+
+        function updateButtonStates() {
+            const isAnswered = answered.has(currentQuestion);
+            document.getElementById('btnNext').disabled = !isAnswered;
+            document.getElementById('btnBack').disabled = currentQuestion === 0;
+        }
+
+        function updateProgress() {
+            const progress = ((currentQuestion + 1) / questions.length) * 100;
+            document.getElementById('progressFill').style.width = progress + '%';
+        }
+
+        function nextQuestion() {
+            if (currentQuestion < questions.length - 1) {
+                currentQuestion++;
+                loadQuestion();
+            } else {
+                showSummary();
+            }
+        }
+
+        function previousQuestion() {
+            if (currentQuestion > 0) {
+                currentQuestion--;
+                loadQuestion();
+            }
+        }
+
+        function showSummary() {
+            document.getElementById('quizScreen').classList.add('hidden');
+            document.getElementById('summaryScreen').classList.remove('hidden');
+            
+            const percentage = Math.round((score / questions.length) * 100);
+            document.getElementById('scoreCircle').textContent = percentage + '%';
+            document.getElementById('scoreText').textContent = 
+                `You scored ${score} out of ${questions.length} questions correctly.`;
+            document.getElementById('summaryTitle').textContent = 
+                `${currentTrade.toUpperCase()} - Module ${currentLevel}`;
+        }
+
+        // Get reference to current question
+        Object.defineProperty(window, 'question', {
+            get: function() {
+                return questions[currentQuestion];
+            }
+        });
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', initTrades);
+    </script>
+</body>
+</html>
