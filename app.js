@@ -3,8 +3,8 @@ const $=(s,p=document)=>p.querySelector(s), $$=(s,p=document)=>[...p.querySelect
 const store={get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},set(k,v){localStorage.setItem(k,JSON.stringify(v))}};
 let state=store.get('applus-state',{name:'Apprentice',signature:'',courseId:'brick',xp:0,completed:{},drafts:{},rewards:[],academyPassed:{},academyScores:{},academyCompletionDates:{},witnessTestimonies:{},tab:'home'});
 state.signature=state.signature||''; state.academyPassed=state.academyPassed||{}; state.academyScores=state.academyScores||{}; state.academyCompletionDates=state.academyCompletionDates||{}; state.witnessTestimonies=state.witnessTestimonies||{};
-let view={tab:state.tab||'home',courseId:state.courseId||'brick',assignment:null,academyModule:null,witnessAssignment:null,apprenticeshipTab:state.apprenticeshipTab||'assignments'};
-const APP_VERSION='2.1';
+let view={tab:state.tab||'home',courseId:state.courseId||'brick',assignment:null,academyModule:null,academySection:null,witnessAssignment:null,apprenticeshipTab:state.apprenticeshipTab||'assignments'};
+const APP_VERSION='2.3';
 let deferredInstallPrompt=null;
 let swRegistration=null;
 let refreshingForUpdate=false;
@@ -17,7 +17,7 @@ function esc(s=''){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt
 function toast(t){document.body.insertAdjacentHTML('beforeend',`<div class="toast">${esc(t)}</div>`);setTimeout(()=>$('.toast')?.remove(),1800)}
 function header(title){return `<header class="header"><div class="brand"><img src="logo.png"><div><div class="eyebrow">APPRENTICE+</div><h1>${esc(title)}</h1><div class="subtitle">Your Course, Your Way</div><span class="build">Build ${APP_VERSION}</span></div></div></header>`}
 const nav=()=>`<nav class="nav">${[['home','⌂','Home'],['academy','☆','Academy'],['apprenticeship','▣','Apprenticeship'],['documents','▤','Documents'],['settings','⚙','Settings']].map(([id,i,l])=>`<button data-tab="${id}" class="${view.tab===id?'active':''}"><span class="ico">${i}</span>${l}</button>`).join('')}</nav>`;
-function shell(title,body){$('#app').innerHTML=`<div class="app">${header(title)}<main class="main">${body}</main>${nav()}</div>`;$$('[data-tab]').forEach(b=>b.onclick=()=>{view.tab=b.dataset.tab;view.assignment=null;view.academyModule=null;view.witnessAssignment=null;save();render()})}
+function shell(title,body){$('#app').innerHTML=`<div class="app">${header(title)}<main class="main">${body}</main>${nav()}</div>`;$$('[data-tab]').forEach(b=>b.onclick=()=>{view.tab=b.dataset.tab;view.assignment=null;view.academyModule=null;view.academySection=null;view.witnessAssignment=null;save();render()})}
 function render(){if(view.assignment)return renderAssignment();if(view.academyModule)return renderAcademyModule();if(view.witnessAssignment)return renderWitnessTestimony();({home:renderHome,academy:renderAcademy,apprenticeship:renderApprenticeship,documents:renderDocuments,settings:renderSettings}[view.tab]||renderHome)()}
 function renderHome(){let total=APP_COURSES.reduce((n,c)=>n+c.assignments.length,0),done=Object.keys(state.completed).length; shell('Home',`<section class="hero"><div class="muted" style="color:#c9e7df">Welcome back,</div><div class="big">${esc(state.name)}</div><p>Build evidence, complete assignments and track your apprenticeship progress.</p><button class="btn btn-primary" id="continue">Continue apprenticeship</button></section><h2 class="section-title">Your progress</h2><div class="grid"><div class="stat"><b>${done}</b>Assignments complete</div><div class="stat"><b>${state.xp||0}</b>Total XP</div></div><div class="card"><h2>${esc(course().name)}</h2><p class="muted">${course().reference} · Version ${course().version}</p><div class="progress"><span style="width:${Math.round(completedCount()/course().assignments.length*100)}%"></span></div><p><b>${completedCount()} / ${course().assignments.length}</b> assignments</p></div><div class="card"><h2>Quick actions</h2><div class="grid"><button class="btn btn-secondary" data-go="academy">Open Academy</button><button class="btn btn-secondary" data-go="documents">View documents</button></div></div>`);$('#continue').onclick=()=>{view.tab='apprenticeship';render()};$$('[data-go]').forEach(b=>b.onclick=()=>{view.tab=b.dataset.go;render()})}
 function academyModules(c=course()){
@@ -38,76 +38,85 @@ function academyQuestions(m){
     code:ksbCode(raw),
     text:String(raw).replace(/^[KSB]\d+\s*:\s*/i,'').trim().replace(/\.$/,'')
   }));
-  const fallback=entries[0]||{code:'KSB',text:a.title};
-  const wrongActions=[
-    'Continue using personal judgement without checking the assignment requirements.',
-    'Use the quickest method and correct any problems only after the work is finished.',
-    'Leave the decision to another person without recording or communicating the issue.',
-    'Accept the result when it looks satisfactory without measurements, checks or evidence.',
-    'Substitute materials, equipment or methods without approval from the relevant person.',
-    'Ignore the requirement because the task appears routine or low risk.',
-    'Cover the work before completing the required checks and recording the outcome.',
-    'Rely only on previous experience rather than the current drawing, specification or safe system of work.'
-  ];
-  const scenarios=[
-    e=>({
-      q:`During Assignment ${a.number}: ${a.title}, which action best demonstrates ${e.code}: ${e.text}?`,
-      correct:`Apply ${e.text.toLowerCase()} directly to the task, record the relevant checks and correct any non-conformance before continuing.`
-    }),
-    e=>({
-      q:`Before starting ${a.title.toLowerCase()}, what must the apprentice confirm to meet ${e.code}?`,
-      correct:`Confirm the current drawings, specification, safe system of work, required resources and quality criteria connected to ${e.text.toLowerCase()}.`
-    }),
-    e=>({
-      q:`A problem occurs while completing ${a.title.toLowerCase()}. Which response most closely follows ${e.code}?`,
-      correct:`Stop at the appropriate safe point, assess the problem against ${e.text.toLowerCase()}, report it where required and use an authorised corrective action.`
-    }),
-    e=>({
-      q:`Which evidence would provide the strongest proof that ${e.code} was achieved during ${a.title.toLowerCase()}?`,
-      correct:`Task-specific photographs, measurements, records or witness observations showing how ${e.text.toLowerCase()} was applied and checked.`
-    }),
-    e=>({
-      q:`Which quality-control decision is most appropriate for ${e.code} in Assignment ${a.number}?`,
-      correct:`Check the completed stage against the stated tolerance, standard or expected behaviour within ${e.text.toLowerCase()}, then rectify defects before the next stage.`
-    }),
-    e=>({
-      q:`How should ${e.code} influence the selection of tools, equipment or materials for ${a.title.toLowerCase()}?`,
-      correct:`Select suitable, serviceable and approved resources that allow ${e.text.toLowerCase()} to be achieved safely and to the required standard.`
-    }),
-    e=>({
-      q:`Which communication is most important when applying ${e.code} to ${a.title.toLowerCase()}?`,
-      correct:`Give clear, timely and accurate information about the requirement, any change or defect, and confirm understanding with the relevant person.`
-    }),
-    e=>({
-      q:`What is the most serious consequence of failing to apply ${e.code} during Assignment ${a.number}?`,
-      correct:`The work may become unsafe, non-compliant or defective because the requirement to ${e.text.toLowerCase()} has not been demonstrated or verified.`
-    }),
-    e=>({
-      q:`At the end of ${a.title.toLowerCase()}, which final check best demonstrates ${e.code}?`,
-      correct:`Inspect and record the finished work, confirm ${e.text.toLowerCase()} has been met, and leave the work area and evidence ready for review.`
-    }),
-    e=>({
-      q:`Which explanation in an activity statement would best evidence ${e.code} for ${a.title.toLowerCase()}?`,
-      correct:`A specific account of what was done, why it was done, how ${e.text.toLowerCase()} affected decisions, and how the result was checked.`
-    })
-  ];
+  const clean=t=>String(t||'').replace(/\s+/g,' ').trim();
+  const short=t=>{const x=clean(t);return x.length>210?x.slice(0,207)+'…':x};
+  const topic=e=>{
+    const t=e.text.toLowerCase();
+    if(/health|safety|coshh|rpe|ppe|hazard|risk|fire|manual handling|height|puwer/.test(t)) return 'health and safety';
+    if(/drawing|specification|information|document|digital|bim/.test(t)) return 'drawings and technical information';
+    if(/communication|team|colleague|customer|client/.test(t)) return 'communication and teamwork';
+    if(/environment|waste|recycl|sustain/.test(t)) return 'environmental responsibility';
+    if(/quality|standard|tolerance|inspect|check/.test(t)) return 'quality control';
+    if(/tool|equipment|plant|machine/.test(t)) return 'tools and equipment';
+    if(/material|mortar|timber|brick|component/.test(t)) return 'materials and components';
+    if(/behaviour|professional|develop|wellbeing|inclusive/.test(t)) return 'professional behaviour';
+    return 'the mapped KSB requirement';
+  };
+  const make=(e,i)=>{
+    const requirement=short(e.text), area=topic(e);
+    const correct=[
+      `Apply the full requirement: ${requirement}.`,
+      `Check the task against ${requirement}, record the result and correct any non-conformance before continuing.`,
+      `Use the current assignment information and demonstrate ${requirement} through the work and evidence produced.`,
+      `Stop at a safe point, assess the issue against ${requirement}, report it where necessary and use an approved corrective action.`
+    ][i%4];
+    const distractors=[
+      `Treat ${area} as optional because the assignment is familiar.`,
+      `Rely on experience alone without checking the current requirement or recording evidence.`,
+      `Continue the task and only address problems after the work has been covered or handed over.`,
+      `Use a quicker method even when it does not fully meet the stated KSB requirement.`
+    ];
+    const questions=[
+      `For ${e.code}, which statement most accurately describes the ${area} knowledge or practice required in “${a.title}”?`,
+      `During “${a.title}”, which action best demonstrates ${e.code} in relation to ${area}?`,
+      `Before starting this assignment, what should be confirmed to satisfy ${e.code}: ${short(requirement)}?`,
+      `A problem occurs during “${a.title}”. Which response best follows ${e.code} and the requirement for ${area}?`,
+      `Which evidence would most strongly prove that ${e.code} was applied correctly in this assignment?`,
+      `Which decision would be a clear failure to meet ${e.code} during “${a.title}”?`,
+      `How should ${e.code} affect the apprentice's choice of method, tools, materials or controls?`,
+      `What should the apprentice explain in the activity statement to evidence ${e.code}?`,
+      `Which final check is most relevant to ${e.code} before the assignment is completed?`,
+      `Which answer best links ${e.code} directly to the practical work in “${a.title}”?`
+    ];
+    let good=correct;
+    if(i===4) good=`Photographs, measurements, checks, records or witness evidence that clearly show: ${requirement}.`;
+    if(i===5){good=distractors[0]; return {q:questions[i],correct:good,wrong:[correct,distractors[1],distractors[2]]};}
+    if(i===7) good=`Explain what was done, why it was required, how ${requirement.toLowerCase()} influenced the work, and how the result was checked.`;
+    if(i===8) good=`Inspect the completed work and confirm that ${requirement.toLowerCase()} has been met before handover.`;
+    return {q:questions[i],correct:good,wrong:distractors.slice(0,3)};
+  };
+  const fallback={code:'KSB',text:a.title};
   return Array.from({length:10},(_,i)=>{
     const e=entries[i%Math.max(entries.length,1)]||fallback;
-    const item=scenarios[i](e);
-    const distractors=[];
-    for(let j=0;j<wrongActions.length&&distractors.length<3;j++){
-      const w=wrongActions[(i+j*2)%wrongActions.length];
-      if(w!==item.correct&&!distractors.includes(w))distractors.push(w);
-    }
-    const options=[item.correct,...distractors];
-    const shift=(i*3)%4;
-    const rotated=options.slice(shift).concat(options.slice(0,shift));
+    const item=make(e,i);
+    const options=[item.correct,...item.wrong];
+    const shift=(i*3)%4,rotated=options.slice(shift).concat(options.slice(0,shift));
     return {q:item.q,options:rotated,answer:rotated.indexOf(item.correct),ksb:e.code};
   });
 }
 function renderAcademy(){
-  const c=course(), modules=academyModules(c), passed=modules.filter(m=>state.academyPassed[m.id]).length;
-  shell('Academy',`<div class="course-banner"><span>Selected course</span><strong>${esc(c.name)}</strong></div><div class="card academy-overview"><h2>Assignment Academy</h2><p class="muted">Each Academy topic matches one apprenticeship assignment. Every topic matches one assignment and contains 10 difficult questions based only on the KSBs mapped to that assignment. A passed topic provides supporting evidence.</p><div class="progress"><span style="width:${modules.length?Math.round(passed/modules.length*100):0}%"></span></div><p><b>${passed} / ${modules.length}</b> topics passed</p></div><div class="list">${modules.map(m=>{const done=!!state.academyPassed[m.id],score=state.academyScores[m.id];return `<div class="assignment academy-item ${done?'academy-passed':''}" data-module="${esc(m.id)}"><div class="num">${done?'✓':m.code}</div><div class="grow"><h3>${esc(m.code)}: ${esc(m.title)}</h3><div class="muted">${done?`Passed${score!=null?` · ${score}%`:''}`:'10 difficult questions · 80% pass'}</div></div><span>›</span></div>`}).join('')}</div>`);
+  const c=course();
+  if(!view.academySection){
+    const folders=[
+      ['trade','Trade Academy','Assignment-based trade topics and KSB quizzes','▣'],
+      ['functional','Functional Skills','Maths and English learning and assessment','∑'],
+      ['cscs','CSCS','Construction health, safety and environment preparation','⛑'],
+      ['inhouse','In-house Training','Additional training delivered by your provider or employer','★']
+    ];
+    shell('Academy',`<div class="course-banner"><span>Selected course</span><strong>${esc(c.name)}</strong></div><div class="academy-folders">${folders.map(([id,title,desc,icon])=>`<button class="academy-folder" data-academy-section="${id}"><span class="folder-icon">${icon}</span><span><strong>${title}</strong><small>${desc}</small></span><b>›</b></button>`).join('')}</div>`);
+    $$('[data-academy-section]').forEach(b=>b.onclick=()=>{view.academySection=b.dataset.academySection;render()});
+    return;
+  }
+  if(view.academySection!=='trade'){
+    const names={functional:'Functional Skills',cscs:'CSCS',inhouse:'In-house Training'};
+    const info={functional:'This section is ready for Maths and English modules.',cscs:'This section is ready for CSCS health, safety and environment modules.',inhouse:'This section is ready for provider and employer training modules.'};
+    shell('Academy',`<button class="back" id="backAcademyFolders">‹ Back to Academy</button><div class="card"><h2>${names[view.academySection]}</h2><p class="muted">${info[view.academySection]}</p></div><div class="card empty">No topics have been added to this section yet.</div>`);
+    $('#backAcademyFolders').onclick=()=>{view.academySection=null;render()};
+    return;
+  }
+  const modules=academyModules(c),passed=modules.filter(m=>state.academyPassed[m.id]).length;
+  shell('Academy',`<button class="back" id="backAcademyFolders">‹ Back to Academy</button><div class="course-banner"><span>Trade Academy</span><strong>${esc(c.name)}</strong></div><div class="card academy-overview"><h2>Assignment topics</h2><p class="muted">Each topic matches one apprenticeship assignment. Its 10 difficult questions are based directly on the KSB descriptions mapped to that assignment.</p><div class="progress"><span style="width:${modules.length?Math.round(passed/modules.length*100):0}%"></span></div><p><b>${passed} / ${modules.length}</b> topics passed</p></div><div class="list">${modules.map(m=>{const done=!!state.academyPassed[m.id],score=state.academyScores[m.id];return `<div class="assignment academy-item ${done?'academy-passed':''}" data-module="${esc(m.id)}"><div class="num">${done?'✓':m.code}</div><div class="grow"><h3>${esc(m.code)}: ${esc(m.title)}</h3><div class="muted">${done?`Passed${score!=null?` · ${score}%`:''}`:'10 KSB-specific questions · 80% pass'}</div></div><span>›</span></div>`}).join('')}</div>`);
+  $('#backAcademyFolders').onclick=()=>{view.academySection=null;render()};
   $$('[data-module]').forEach(x=>x.onclick=()=>{view.academyModule=x.dataset.module;render()});
 }
 function renderAcademyModule(){
@@ -115,7 +124,7 @@ function renderAcademyModule(){
   if(!m){view.academyModule=null;return renderAcademy()}
   const qs=academyQuestions(m),passed=!!state.academyPassed[m.id];
   shell('Academy',`<button class="back" id="backAcademy">‹ Back to Academy</button><div class="card academy-topic"><span class="academy-ksb">${esc(m.code)}</span><h2>Assignment ${m.assignmentNumber}: ${esc(m.title)}</h2><p class="muted">Mapped KSBs: ${m.ksbs.map(esc).join(', ')}. Passing this assignment-specific quiz adds Academy supporting evidence. The related KSB can only complete when the matching assignment is also complete.</p></div><form class="card academy-quiz" id="academyQuiz"><h2>10-question assessment</h2><p class="muted">All questions relate to this assignment and its mapped KSBs. Score at least 80% to pass.</p>${qs.map((q,qi)=>`<fieldset><legend>${qi+1}. ${esc(q.q)} <small class="muted">${esc(q.ksb)}</small></legend>${q.options.map((o,oi)=>`<label><input type="radio" name="q${qi}" value="${oi}"> <span>${esc(o)}</span></label>`).join('')}</fieldset>`).join('')}<button class="btn btn-primary" type="submit">${passed?'Retake quiz':'Submit answers'}</button><div class="quiz-result" id="quizResult">${passed?`Previously passed${state.academyScores[m.id]!=null?` with ${state.academyScores[m.id]}%`:''}.`:''}</div></form>`);
-  $('#backAcademy').onclick=()=>{view.academyModule=null;render()};
+  $('#backAcademy').onclick=()=>{view.academyModule=null;view.academySection='trade';render()};
   $('#academyQuiz').onsubmit=e=>{e.preventDefault();let correct=0,answered=0;qs.forEach((q,i)=>{const picked=$(`input[name="q${i}"]:checked`);if(picked){answered++;if(Number(picked.value)===q.answer)correct++}});if(answered<qs.length){$('#quizResult').textContent='Answer all 10 questions before submitting.';return}const score=Math.round(correct/qs.length*100);state.academyScores[m.id]=score;if(score>=80){const first=!state.academyPassed[m.id];state.academyPassed[m.id]=true;state.academyCompletionDates[m.id]=state.academyCompletionDates[m.id]||new Date().toISOString();if(first)state.xp=(state.xp||0)+Math.max(1,score-80);$('#quizResult').innerHTML=`<strong>Passed — ${score}%</strong><br>${m.code} is now shown in full yellow against every KSB mapped to Assignment ${m.assignmentNumber}.`;toast(`${m.code} passed`)}else{$('#quizResult').innerHTML=`<strong>Not passed — ${score}%</strong><br>Review the assignment KSBs and try again.`}save()};
 }
 function ksbCode(value=''){return String(value).match(/^[KSB]\d+/i)?.[0].toUpperCase()||String(value).trim()}
@@ -146,16 +155,16 @@ function renderApprenticeship(){
 }
 function renderWitnessTestimony(){
   const c=course();let a=c.assignments.find(x=>x.number===Number(view.witnessAssignment))||c.assignments[0];
-  let wk=`${c.id}-WT${a.number}`,d=state.witnessTestimonies[wk]||{assignmentNumber:a.number,witnessName:'',jobTitle:'',employer:'',text:'',date:new Date().toISOString().slice(0,10),completed:false};
+  let wk=`${c.id}-WT${a.number}`,d=state.witnessTestimonies[wk]||{assignmentNumber:a.number,witnessName:'',jobTitle:'',employer:'',text:'',date:new Date().toISOString().slice(0,10),signature:'',completed:false};d.signature=d.signature||'';
   const hits=a.statementPrompts.filter(p=>promptHit(d.text,concisePrompt(p))).length,wc=words(d.text);
-  shell('Witness Testimony',`<button class="back" id="backWitness">‹ Back to Witness Testimonies</button><div class="card"><h2>Create witness testimony</h2><div class="form-row"><label>Assignment</label><select id="witnessAssignmentSelect">${c.assignments.map(x=>`<option value="${x.number}" ${x.number===a.number?'selected':''}>Assignment ${x.number}: ${esc(x.title)}</option>`).join('')}</select></div><div class="form-row"><label>Witness name</label><input id="witnessName" value="${esc(d.witnessName)}" placeholder="Employer or workplace witness"></div><div class="form-row"><label>Job title</label><input id="witnessRole" value="${esc(d.jobTitle)}" placeholder="Job title"></div><div class="form-row"><label>Employer</label><input id="witnessEmployer" value="${esc(d.employer)}" placeholder="Company or employer"></div><div class="form-row"><label>Date</label><input id="witnessDate" type="date" value="${esc(d.date)}"></div></div><div class="card"><h2>WT${a.number}: ${esc(a.title)}</h2><p class="muted">Describe what the witness personally observed. Use the same prompts as the selected assignment.</p><div id="witnessPrompts">${a.statementPrompts.map((p,i)=>`<div class="prompt ${promptHit(d.text,concisePrompt(p))?'ok':''}" data-wprompt="${i}"><div class="prompt-head"><span class="dot"></span><span>${esc(concisePrompt(p))}</span><small class="muted">${esc(p.ksb)}</small><button class="info" type="button">i</button></div><div class="detail"><b>Suggested things to confirm:</b><div class="suggestions">${suggestedPoints(p).map(x=>`<span>${esc(x)}</span>`).join('')}</div></div></div>`).join('')}</div><textarea class="textarea" id="witnessText" rows="14" autocapitalize="sentences" spellcheck="true" placeholder="Write the full witness testimony here...">${esc(d.text)}</textarea><div class="counter"><span id="witnessWords">${wc} words</span><span id="witnessHits">${hits} / ${a.statementPrompts.length} prompts</span></div><button class="btn btn-primary" id="saveWitness">Save witness testimony</button></div>`);
+  shell('Witness Testimony',`<button class="back" id="backWitness">‹ Back to Witness Testimonies</button><div class="card"><h2>Create witness testimony</h2><div class="form-row"><label>Assignment</label><select id="witnessAssignmentSelect">${c.assignments.map(x=>`<option value="${x.number}" ${x.number===a.number?'selected':''}>Assignment ${x.number}: ${esc(x.title)}</option>`).join('')}</select></div><div class="form-row"><label>Witness name</label><input id="witnessName" value="${esc(d.witnessName)}" placeholder="Employer or workplace witness"></div><div class="form-row"><label>Job title</label><input id="witnessRole" value="${esc(d.jobTitle)}" placeholder="Job title"></div><div class="form-row"><label>Employer</label><input id="witnessEmployer" value="${esc(d.employer)}" placeholder="Company or employer"></div><div class="form-row"><label>Date</label><input id="witnessDate" type="date" value="${esc(d.date)}"></div></div><div class="card"><h2>WT${a.number}: ${esc(a.title)}</h2><p class="muted">Describe what the witness personally observed. Use the same prompts as the selected assignment.</p><div id="witnessPrompts">${a.statementPrompts.map((p,i)=>`<div class="prompt ${promptHit(d.text,concisePrompt(p))?'ok':''}" data-wprompt="${i}"><div class="prompt-head"><span class="dot"></span><span>${esc(concisePrompt(p))}</span><small class="muted">${esc(p.ksb)}</small><button class="info" type="button">i</button></div><div class="detail"><b>Suggested things to confirm:</b><div class="suggestions">${suggestedPoints(p).map(x=>`<span>${esc(x)}</span>`).join('')}</div></div></div>`).join('')}</div><textarea class="textarea" id="witnessText" rows="14" autocapitalize="sentences" spellcheck="true" placeholder="Write the full witness testimony here...">${esc(d.text)}</textarea><div class="counter"><span id="witnessWords">${wc} words</span><span id="witnessHits">${hits} / ${a.statementPrompts.length} prompts</span></div><div class="form-row witness-signature-block"><label>Witness signature</label><div class="signature-wrap"><canvas id="witnessSignaturePad" width="600" height="180"></canvas></div><div class="signature-actions"><button type="button" class="btn btn-secondary" id="clearWitnessSignature">Clear signature</button></div><p class="muted">The witness must sign inside this box before the testimony can be completed.</p></div><button class="btn btn-primary" id="saveWitness">Save witness testimony</button></div>`);
   $('#backWitness').onclick=()=>{view.witnessAssignment=null;view.apprenticeshipTab='witness';render()};
   $('#witnessAssignmentSelect').onchange=e=>{view.witnessAssignment=Number(e.target.value);render()};
   $$('.info').forEach(b=>b.onclick=e=>{e.stopPropagation();b.closest('.prompt').querySelector('.detail').classList.toggle('open')});
   const persist=()=>{d.witnessName=$('#witnessName').value.trim();d.jobTitle=$('#witnessRole').value.trim();d.employer=$('#witnessEmployer').value.trim();d.date=$('#witnessDate').value;d.text=$('#witnessText').value;state.witnessTestimonies[wk]=d;save()};
-  ['witnessName','witnessRole','witnessEmployer','witnessDate'].forEach(id=>$('#'+id).oninput=persist);
+  ['witnessName','witnessRole','witnessEmployer','witnessDate'].forEach(id=>$('#'+id).oninput=persist);setupCanvasSignature('witnessSignaturePad',d.signature,data=>{d.signature=data;state.witnessTestimonies[wk]=d;save()},'clearWitnessSignature');
   $('#witnessText').oninput=e=>{d.text=e.target.value;persist();const h=a.statementPrompts.filter(p=>promptHit(d.text,concisePrompt(p))).length;$('#witnessWords').textContent=`${words(d.text)} words`;$('#witnessHits').textContent=`${h} / ${a.statementPrompts.length} prompts`;a.statementPrompts.forEach((p,i)=>document.querySelector(`[data-wprompt="${i}"]`)?.classList.toggle('ok',promptHit(d.text,concisePrompt(p))))};
-  $('#saveWitness').onclick=()=>{persist();if(!d.witnessName||!d.jobTitle||!d.text.trim()){toast('Add the witness name, job title and testimony');return}d.completed=true;d.savedAt=new Date().toISOString();state.witnessTestimonies[wk]=d;save();toast(`WT${a.number} saved`);setTimeout(()=>{view.witnessAssignment=null;view.apprenticeshipTab='witness';render()},600)};
+  $('#saveWitness').onclick=()=>{persist();if(!d.witnessName||!d.jobTitle||!d.text.trim()||!d.signature){toast('Add the witness details, testimony and signature');return}d.completed=true;d.savedAt=new Date().toISOString();state.witnessTestimonies[wk]=d;save();toast(`WT${a.number} saved`);setTimeout(()=>{view.witnessAssignment=null;view.apprenticeshipTab='witness';render()},600)};
 }
 function getDraft(a){return state.drafts[key(a)]||{text:'',photos:Array(6).fill(null)}}
 function words(t){return (t.trim().match(/\b[\w'-]+\b/g)||[]).length}
@@ -254,31 +263,54 @@ function academyPdf(cid,num){
   const score=state.academyScores[m.id],date=state.academyCompletionDates[m.id]?new Date(state.academyCompletionDates[m.id]).toLocaleDateString('en-GB'):'Not completed';
   documentWindow(`${m.code} ${m.title}`,`<h1>${esc(m.code)}: ${esc(m.title)}</h1><div>${esc(c.name)} · ${esc(c.reference)} · Version ${esc(c.version)}</div><div class="meta"><div class="box"><b>Apprentice</b><br>${esc(state.name)}</div><div class="box"><b>Completion date</b><br>${date}</div><div class="box"><b>Quiz result</b><br>${score??0}%</div><div class="box"><b>Status</b><br>${state.academyPassed[m.id]?'Passed':'Not passed'}</div></div><h2>Mapped KSBs</h2><p>${m.ksbs.map(esc).join(' · ')}</p><h2>Apprentice signature</h2>${state.signature?`<img class="signature" src="${state.signature}">`:'<p>No signature saved.</p>'}`);
 }
+function witnessPdf(cid,num){
+  const c=APP_COURSES.find(x=>x.id===cid),a=c?.assignments.find(x=>x.number===Number(num)),d=state.witnessTestimonies[`${cid}-WT${num}`];if(!c||!a||!d)return;
+  documentWindow(`WT${a.number} ${a.title}`,`<h1>Witness Testimony ${a.number}: ${esc(a.title)}</h1><div>${esc(c.name)} · ${esc(c.reference)} · Version ${esc(c.version)}</div><div class="meta"><div class="box"><b>Witness</b><br>${esc(d.witnessName)}</div><div class="box"><b>Job title</b><br>${esc(d.jobTitle)}</div><div class="box"><b>Employer</b><br>${esc(d.employer||'')}</div><div class="box"><b>Date</b><br>${d.date?new Date(d.date+'T00:00:00').toLocaleDateString('en-GB'):''}</div></div><h2>Witness testimony</h2><div class="statement">${esc(d.text||'')}</div><h2>Mapped KSBs</h2><p>${a.ksbs.map(esc).join(' · ')}</p><h2>Witness signature</h2>${d.signature?`<img class="signature" src="${d.signature}">`:'<p>No signature saved.</p>'}`);
+}
+const enc=new TextEncoder();
+function bytes(s){return enc.encode(s)}
+function concatBytes(parts){let n=parts.reduce((a,b)=>a+b.length,0),out=new Uint8Array(n),o=0;for(const p of parts){out.set(p,o);o+=p.length}return out}
+function dataUrlBytes(u){const b=atob(u.split(',')[1]||''),x=new Uint8Array(b.length);for(let i=0;i<b.length;i++)x[i]=b.charCodeAt(i);return x}
+function crc32(data){let c=0xffffffff;for(const b of data){c^=b;for(let k=0;k<8;k++)c=(c>>>1)^((c&1)?0xedb88320:0)}return (c^0xffffffff)>>>0}
+function le16(n){return new Uint8Array([n&255,(n>>>8)&255])}function le32(n){return new Uint8Array([n&255,(n>>>8)&255,(n>>>16)&255,(n>>>24)&255])}
+function makeZip(files){let locals=[],centrals=[],offset=0;for(const f of files){const name=bytes(f.name),data=f.data instanceof Uint8Array?f.data:bytes(f.data),crc=crc32(data),local=concatBytes([le32(0x04034b50),le16(20),le16(0),le16(0),le16(0),le16(0),le32(crc),le32(data.length),le32(data.length),le16(name.length),le16(0),name,data]);locals.push(local);centrals.push(concatBytes([le32(0x02014b50),le16(20),le16(20),le16(0),le16(0),le16(0),le16(0),le32(crc),le32(data.length),le32(data.length),le16(name.length),le16(0),le16(0),le16(0),le16(0),le32(0),le32(offset),name]));offset+=local.length}const central=concatBytes(centrals),end=concatBytes([le32(0x06054b50),le16(0),le16(0),le16(files.length),le16(files.length),le32(central.length),le32(offset),le16(0)]);return new Blob([...locals,central,end],{type:'application/zip'})}
+function wrapCanvasText(ctx,text,x,y,maxWidth,lineHeight,maxLines=999){const paras=String(text||'').split(/\n/);let lines=0;for(const para of paras){let line='';for(const word of para.split(/\s+/)){const test=line?line+' '+word:word;if(ctx.measureText(test).width>maxWidth&&line){ctx.fillText(line,x,y);y+=lineHeight;lines++;line=word;if(lines>=maxLines)return y}else line=test}if(line){ctx.fillText(line,x,y);y+=lineHeight;lines++;if(lines>=maxLines)return y}y+=lineHeight*.25}return y}
+function pageCanvas(){const c=document.createElement('canvas');c.width=1240;c.height=1754;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.fillStyle='#073f43';return [c,x]}
+function drawHeader(ctx,title,sub){ctx.fillStyle='#073f43';ctx.fillRect(0,0,1240,165);ctx.fillStyle='#72ed2d';ctx.font='bold 31px Arial';ctx.fillText('APPRENTICE+',70,65);ctx.fillStyle='#fff';ctx.font='bold 46px Arial';ctx.fillText(title,70,125);ctx.fillStyle='#073f43';ctx.font='25px Arial';ctx.fillText(sub,70,215);ctx.fillStyle='#72ed2d';ctx.fillRect(70,240,1100,7)}
+async function loadImg(src){return new Promise(r=>{if(!src)return r(null);const i=new Image();i.onload=()=>r(i);i.onerror=()=>r(null);i.src=src})}
+async function assignmentPdfBytes(cid,num){const c=APP_COURSES.find(x=>x.id===cid),a=c.assignments.find(x=>x.number===num),d=state.drafts[`${cid}-${num}`]||{text:'',photos:[]},done=state.completed[`${cid}-${num}`];let pages=[];let [cv,ctx]=pageCanvas();drawHeader(ctx,`AS${num}: ${a.title}`,`${c.name} · ${c.reference} · Version ${c.version}`);ctx.font='bold 25px Arial';ctx.fillText(`Apprentice: ${state.name}`,70,300);ctx.fillText(`Completed: ${done?.date?new Date(done.date).toLocaleDateString('en-GB'):'Not completed'}`,650,300);ctx.font='bold 30px Arial';ctx.fillText('Photographic evidence',70,365);const imgs=await Promise.all((d.photos||[]).slice(0,6).map(loadImg));for(let i=0;i<6;i++){const col=i%2,row=Math.floor(i/2),x=70+col*555,y=405+row*360;ctx.strokeStyle='#b9d7d2';ctx.lineWidth=3;ctx.strokeRect(x,y,515,310);if(imgs[i]){const im=imgs[i],scale=Math.min(515/im.width,270/im.height),w=im.width*scale,h=im.height*scale;ctx.drawImage(im,x+(515-w)/2,y+(270-h)/2,w,h)}ctx.fillStyle='#073f43';ctx.font='bold 20px Arial';ctx.fillText(photoTitles[i]||`Photo ${i+1}`,x+15,y+295)}pages.push(cv);[cv,ctx]=pageCanvas();drawHeader(ctx,'Activity statement',`AS${num}: ${a.title}`);ctx.font='24px Arial';ctx.fillStyle='#073f43';wrapCanvasText(ctx,d.text||'',70,305,1100,35,32);ctx.font='bold 27px Arial';ctx.fillText('Mapped KSBs',70,1450);ctx.font='22px Arial';wrapCanvasText(ctx,a.ksbs.join(' · '),70,1490,1100,31,4);ctx.font='bold 25px Arial';ctx.fillText('Apprentice signature',70,1620);const sig=await loadImg(state.signature);if(sig)ctx.drawImage(sig,350,1550,400,120);pages.push(cv);return canvasesToPdf(pages)}
+async function academyPdfBytes(cid,num){const c=APP_COURSES.find(x=>x.id===cid),m=academyModules(c).find(x=>x.assignmentNumber===num),[cv,ctx]=pageCanvas();drawHeader(ctx,`${m.code}: ${m.title}`,`${c.name} · ${c.reference} · Version ${c.version}`);ctx.font='bold 26px Arial';ctx.fillText(`Apprentice: ${state.name}`,70,310);ctx.fillText(`Quiz result: ${state.academyScores[m.id]||0}%`,70,360);ctx.fillText(`Completed: ${new Date(state.academyCompletionDates[m.id]||Date.now()).toLocaleDateString('en-GB')}`,70,410);ctx.font='bold 30px Arial';ctx.fillText('Mapped KSBs',70,500);ctx.font='23px Arial';wrapCanvasText(ctx,m.ksbs.join(' · '),70,545,1100,34,12);ctx.font='bold 25px Arial';ctx.fillText('Apprentice signature',70,1450);const sig=await loadImg(state.signature);if(sig)ctx.drawImage(sig,70,1490,450,135);return canvasesToPdf([cv])}
+async function witnessPdfBytes(cid,num){const c=APP_COURSES.find(x=>x.id===cid),a=c.assignments.find(x=>x.number===num),d=state.witnessTestimonies[`${cid}-WT${num}`],[cv,ctx]=pageCanvas();drawHeader(ctx,`WT${num}: ${a.title}`,`${c.name} · ${c.reference} · Version ${c.version}`);ctx.font='bold 24px Arial';ctx.fillText(`Witness: ${d.witnessName}`,70,305);ctx.fillText(`Job title: ${d.jobTitle}`,70,350);ctx.fillText(`Employer: ${d.employer||''}`,70,395);ctx.fillText(`Date: ${d.date?new Date(d.date+'T00:00:00').toLocaleDateString('en-GB'):''}`,70,440);ctx.font='bold 30px Arial';ctx.fillText('Witness testimony',70,510);ctx.font='23px Arial';wrapCanvasText(ctx,d.text||'',70,555,1100,33,24);ctx.font='bold 25px Arial';ctx.fillText('Witness signature',70,1480);const sig=await loadImg(d.signature);if(sig)ctx.drawImage(sig,70,1520,450,135);return canvasesToPdf([cv])}
+async function matrixPdfBytes(c){const rows=ksbRows(c),pages=[];for(let start=0;start<rows.length;start+=12){const [cv,ctx]=pageCanvas();drawHeader(ctx,'KSB Matrix',`${c.name} · ${c.reference} · Version ${c.version}`);let y=300;ctx.font='19px Arial';for(const r of rows.slice(start,start+12)){const done=r.assignments.length&&r.assignments.every(a=>assignmentSupportComplete(c,a));ctx.fillStyle=done?'#dff8e6':'#f4f8f7';ctx.fillRect(55,y-28,1130,100);ctx.fillStyle='#073f43';ctx.font='bold 23px Arial';ctx.fillText(`${done?'✓ ':''}${r.code}`,75,y);ctx.font='18px Arial';wrapCanvasText(ctx,r.description||r.code,165,y,650,24,2);let bx=840;for(const a of r.assignments.slice(0,3)){const ad=!!state.completed[`${c.id}-${a.number}`],at=!!state.academyPassed[`${c.id}-AT${a.number}`],wt=!!state.witnessTestimonies[`${c.id}-WT${a.number}`]?.completed;ctx.fillStyle=ad?'#20bf75':'#dce9e6';ctx.fillRect(bx,y-22,80,32);ctx.fillStyle=ad?'#fff':'#073f43';ctx.fillText(`AS${a.number}`,bx+8,y+1);bx+=90;ctx.fillStyle=at?'#f0c600':'#fff3b8';ctx.fillRect(bx,y-22,80,32);ctx.fillStyle='#073f43';ctx.fillText(`AT${a.number}`,bx+8,y+1);bx+=90;ctx.fillStyle=wt?'#55aeea':'#dcecf8';ctx.fillRect(bx,y-22,80,32);ctx.fillText(`WT${a.number}`,bx+8,y+1);bx+=90}y+=112}pages.push(cv)}return canvasesToPdf(pages)}
+function canvasesToPdf(canvases){const imgs=canvases.map(c=>({data:dataUrlBytes(c.toDataURL('image/jpeg',.88)),w:c.width,h:c.height})),count=imgs.length,objCount=2+count*3,parts=[],offsets=[0],pos=0;const add=x=>{parts.push(x);pos+=x.length};add(bytes('%PDF-1.4\n%âãÏÓ\n'));const obj=(n,content)=>{offsets[n]=pos;add(bytes(`${n} 0 obj\n`));add(content instanceof Uint8Array?content:bytes(content));add(bytes('\nendobj\n'))};obj(1,'<< /Type /Catalog /Pages 2 0 R >>');const kids=imgs.map((_,i)=>`${3+i*3} 0 R`).join(' ');obj(2,`<< /Type /Pages /Kids [${kids}] /Count ${count} >>`);imgs.forEach((im,i)=>{const p=3+i*3,co=p+1,io=p+2;obj(p,`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /XObject << /Im${i} ${io} 0 R >> >> /Contents ${co} 0 R >>`);const stream=`q\n595 0 0 842 0 0 cm\n/Im${i} Do\nQ\n`;obj(co,`<< /Length ${stream.length} >>\nstream\n${stream}endstream`);obj(io,concatBytes([bytes(`<< /Type /XObject /Subtype /Image /Width ${im.w} /Height ${im.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${im.data.length} >>\nstream\n`),im.data,bytes('\nendstream')]))});const xref=pos;add(bytes(`xref\n0 ${objCount+1}\n0000000000 65535 f \n`));for(let i=1;i<=objCount;i++)add(bytes(String(offsets[i]).padStart(10,'0')+' 00000 n \n'));add(bytes(`trailer\n<< /Size ${objCount+1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`));return concatBytes(parts)}
+async function downloadPortfolio(){const c=course(),btn=$('#downloadPortfolio');btn.disabled=true;btn.textContent='Building portfolio…';try{const files=[];for(const [k] of Object.entries(state.completed).filter(([k])=>k.startsWith(c.id+'-'))){const n=Number(k.split('-').pop());files.push({name:`AS${n}-${c.assignments.find(a=>a.number===n).title.replace(/[^a-z0-9]+/gi,'-')}.pdf`,data:await assignmentPdfBytes(c.id,n)})}for(const m of academyModules(c).filter(m=>state.academyPassed[m.id]))files.push({name:`${m.code}-${m.title.replace(/[^a-z0-9]+/gi,'-')}.pdf`,data:await academyPdfBytes(c.id,m.assignmentNumber)});for(const a of c.assignments){if(state.witnessTestimonies[`${c.id}-WT${a.number}`]?.completed)files.push({name:`WT${a.number}-${a.title.replace(/[^a-z0-9]+/gi,'-')}.pdf`,data:await witnessPdfBytes(c.id,a.number)})}files.push({name:'KSB-Matrix.pdf',data:await matrixPdfBytes(c)});const blob=makeZip(files),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=`${c.name.replace(/[^a-z0-9]+/gi,'-')}-Portfolio.zip`;a.click();setTimeout(()=>URL.revokeObjectURL(u),2000);toast('Portfolio downloaded')}catch(e){console.error(e);toast('Portfolio could not be created')}finally{btn.disabled=false;btn.textContent='Download portfolio'}}
 function renderDocuments(){
   const assignmentEntries=Object.entries(state.completed).filter(([k])=>k.startsWith(view.courseId+'-'));
   const academyEntries=academyModules(course()).filter(m=>state.academyPassed[m.id]);
+  const witnessEntries=course().assignments.filter(a=>state.witnessTestimonies[`${view.courseId}-WT${a.number}`]?.completed);
   const assignmentCards=assignmentEntries.map(([k,v])=>{const num=Number(k.split('-').pop());return `<div class="document-card"><div><span class="tag">AS${num}</span><h3>${esc(v.title)}</h3><div class="muted">Completed ${new Date(v.date).toLocaleDateString('en-GB')}</div></div><div class="document-actions"><button data-edit-as="${num}">Edit</button><button data-download-as="${num}">Download</button><button class="danger-mini" data-delete-as="${num}">Delete</button></div></div>`}).join('');
   const academyCards=academyEntries.map(m=>`<div class="document-card"><div><span class="tag academy-tag">${m.code}</span><h3>${esc(m.title)}</h3><div class="muted">Passed ${state.academyScores[m.id]}% · ${new Date(state.academyCompletionDates[m.id]||Date.now()).toLocaleDateString('en-GB')}</div></div><div class="document-actions"><button data-edit-at="${m.assignmentNumber}">Edit</button><button data-download-at="${m.assignmentNumber}">Download</button><button class="danger-mini" data-delete-at="${m.assignmentNumber}">Delete</button></div></div>`).join('');
-  shell('Documents',`<div class="card"><h2>PDF documents</h2><p class="muted">Edit evidence, open a print-ready PDF, download it using Save as PDF, or delete the completed document.</p></div><h2 class="section-title">Assignments</h2>${assignmentCards||'<div class="card empty">No completed assignments yet.</div>'}<h2 class="section-title">Academy topics</h2>${academyCards||'<div class="card empty">No passed Academy topics yet.</div>'}`);
-  $$('[data-edit-as]').forEach(b=>b.onclick=()=>{view.tab='apprenticeship';view.assignment=Number(b.dataset.editAs);render()});
-  $$('[data-download-as]').forEach(b=>b.onclick=()=>assignmentPdf(view.courseId,Number(b.dataset.downloadAs)));
-  $$('[data-delete-as]').forEach(b=>b.onclick=()=>{const n=Number(b.dataset.deleteAs);if(confirm(`Delete completed AS${n} PDF status? The draft evidence will remain available for editing.`)){delete state.completed[`${view.courseId}-${n}`];save();renderDocuments()}});
-  $$('[data-edit-at]').forEach(b=>b.onclick=()=>{view.tab='academy';view.academyModule=`${view.courseId}-AT${b.dataset.editAt}`;render()});
-  $$('[data-download-at]').forEach(b=>b.onclick=()=>academyPdf(view.courseId,Number(b.dataset.downloadAt)));
-  $$('[data-delete-at]').forEach(b=>b.onclick=()=>{const n=Number(b.dataset.deleteAt),id=`${view.courseId}-AT${n}`;if(confirm(`Delete completed AT${n} document and pass status?`)){delete state.academyPassed[id];delete state.academyScores[id];delete state.academyCompletionDates[id];save();renderDocuments()}});
+  const witnessCards=witnessEntries.map(a=>{const d=state.witnessTestimonies[`${view.courseId}-WT${a.number}`];return `<div class="document-card"><div><span class="tag witness-tag">WT${a.number}</span><h3>${esc(a.title)}</h3><div class="muted">Signed by ${esc(d.witnessName)} · ${d.date?new Date(d.date+'T00:00:00').toLocaleDateString('en-GB'):''}</div></div><div class="document-actions"><button data-edit-wt="${a.number}">Edit</button><button data-download-wt="${a.number}">Download</button><button class="danger-mini" data-delete-wt="${a.number}">Delete</button></div></div>`}).join('');
+  shell('Documents',`<div class="card portfolio-card"><h2>Apprenticeship portfolio</h2><p class="muted">Download one ZIP containing every completed assignment PDF, passed Academy topic PDF, signed witness testimony PDF and the current KSB Matrix.</p><button class="btn btn-primary" id="downloadPortfolio">Download portfolio</button></div><div class="card"><h2>PDF documents</h2><p class="muted">Edit evidence, open a print-ready PDF, download it using Save as PDF, or delete the completed document.</p></div><h2 class="section-title">Assignments</h2>${assignmentCards||'<div class="card empty">No completed assignments yet.</div>'}<h2 class="section-title">Academy topics</h2>${academyCards||'<div class="card empty">No passed Academy topics yet.</div>'}<h2 class="section-title">Witness testimonies</h2>${witnessCards||'<div class="card empty">No signed witness testimonies yet.</div>'}`);
+  $('#downloadPortfolio').onclick=downloadPortfolio;
+  $$('[data-edit-as]').forEach(b=>b.onclick=()=>{view.tab='apprenticeship';view.assignment=Number(b.dataset.editAs);render()});$$('[data-download-as]').forEach(b=>b.onclick=()=>assignmentPdf(view.courseId,Number(b.dataset.downloadAs)));$$('[data-delete-as]').forEach(b=>b.onclick=()=>{const n=Number(b.dataset.deleteAs);if(confirm(`Delete completed AS${n} PDF status? The draft evidence will remain available for editing.`)){delete state.completed[`${view.courseId}-${n}`];save();renderDocuments()}});
+  $$('[data-edit-at]').forEach(b=>b.onclick=()=>{view.tab='academy';view.academyModule=`${view.courseId}-AT${b.dataset.editAt}`;render()});$$('[data-download-at]').forEach(b=>b.onclick=()=>academyPdf(view.courseId,Number(b.dataset.downloadAt)));$$('[data-delete-at]').forEach(b=>b.onclick=()=>{const n=Number(b.dataset.deleteAt),id=`${view.courseId}-AT${n}`;if(confirm(`Delete completed AT${n} document and pass status?`)){delete state.academyPassed[id];delete state.academyScores[id];delete state.academyCompletionDates[id];save();renderDocuments()}});
+  $$('[data-edit-wt]').forEach(b=>b.onclick=()=>{view.tab='apprenticeship';view.witnessAssignment=Number(b.dataset.editWt);render()});$$('[data-download-wt]').forEach(b=>b.onclick=()=>witnessPdf(view.courseId,Number(b.dataset.downloadWt)));$$('[data-delete-wt]').forEach(b=>b.onclick=()=>{const n=Number(b.dataset.deleteWt);if(confirm(`Delete WT${n} witness testimony?`)){delete state.witnessTestimonies[`${view.courseId}-WT${n}`];save();renderDocuments()}});
 }
-function setupSignaturePad(){
-  const canvas=$('#signaturePad');if(!canvas)return;const ctx=canvas.getContext('2d');ctx.lineWidth=4;ctx.lineCap='round';ctx.strokeStyle='#073f43';
-  if(state.signature){const img=new Image();img.onload=()=>ctx.drawImage(img,0,0,canvas.width,canvas.height);img.src=state.signature}
+
+function setupCanvasSignature(canvasId,existing,onSave,clearId){
+  const canvas=$('#'+canvasId);if(!canvas)return;const ctx=canvas.getContext('2d');ctx.lineWidth=4;ctx.lineCap='round';ctx.strokeStyle='#073f43';
+  if(existing){const img=new Image();img.onload=()=>ctx.drawImage(img,0,0,canvas.width,canvas.height);img.src=existing}
   let drawing=false;
   const point=e=>{const r=canvas.getBoundingClientRect(),t=e.touches?.[0]||e;return {x:(t.clientX-r.left)*canvas.width/r.width,y:(t.clientY-r.top)*canvas.height/r.height}};
   const begin=e=>{e.preventDefault();drawing=true;const p=point(e);ctx.beginPath();ctx.moveTo(p.x,p.y)};
   const move=e=>{if(!drawing)return;e.preventDefault();const p=point(e);ctx.lineTo(p.x,p.y);ctx.stroke()};
-  const end=e=>{if(!drawing)return;e?.preventDefault();drawing=false;state.signature=canvas.toDataURL('image/png');save()};
-  canvas.addEventListener('pointerdown',begin);canvas.addEventListener('pointermove',move);window.addEventListener('pointerup',end,{once:false});
+  const end=e=>{if(!drawing)return;e?.preventDefault();drawing=false;onSave(canvas.toDataURL('image/png'))};
+  canvas.addEventListener('pointerdown',begin);canvas.addEventListener('pointermove',move);window.addEventListener('pointerup',end);
   canvas.addEventListener('touchstart',begin,{passive:false});canvas.addEventListener('touchmove',move,{passive:false});canvas.addEventListener('touchend',end,{passive:false});
-  $('#clearSignature').onclick=()=>{ctx.clearRect(0,0,canvas.width,canvas.height);state.signature='';save();toast('Signature cleared')};
+  const clear=$('#'+clearId);if(clear)clear.onclick=()=>{ctx.clearRect(0,0,canvas.width,canvas.height);onSave('');toast('Signature cleared')};
 }
+function setupSignaturePad(){setupCanvasSignature('signaturePad',state.signature,data=>{state.signature=data;save()},'clearSignature')}
 function renderSettings(){
   shell('Settings',`<div class="card"><h2>Apprentice profile</h2><div class="form-row"><label>Apprentice name</label><input id="name" value="${esc(state.name)}"></div><div class="form-row"><label>Apprentice signature</label><div class="signature-wrap"><canvas id="signaturePad" width="600" height="180"></canvas></div><div class="signature-actions"><button type="button" class="btn btn-secondary" id="clearSignature">Clear signature</button></div><p class="muted">Sign inside the box. This signature is added to assignment and Academy PDFs.</p></div><div class="form-row"><label>Selected course</label><select id="setCourse">${APP_COURSES.map(c=>`<option value="${c.id}" ${c.id===view.courseId?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div><button class="btn btn-primary" id="saveSettings">Save settings</button></div><div class="card update-card"><h2>App updates</h2><div class="version-grid"><div><span>Installed</span><b>Build ${APP_VERSION}</b></div><div><span>Latest on GitHub</span><b id="latestVersion">Not checked</b></div></div><div class="update-status" id="updateStatus">Checking for updates…</div><button class="btn btn-primary" id="checkUpdates">Check for updates</button><button class="btn btn-secondary" id="downloadUpdate" hidden>Download update</button><button class="btn btn-secondary" id="restartApp" hidden>Restart app</button><p class="install-note">Apprentice+ checks GitHub whenever it opens. Your saved evidence remains on this phone.</p></div><div class="card"><h2>App data</h2><p class="muted">Your evidence is stored locally on this device.</p><button class="btn btn-secondary" id="export">Export backup</button> <button class="btn btn-danger" id="reset">Reset app</button></div><div class="card install-card"><h2>Install Apprentice+</h2><p class="muted">Add Apprentice+ to your phone for full-screen access and offline use.</p><button class="btn btn-primary" id="installApp">Install app</button><p class="install-note" id="installNote">Chrome will show the installation option when it is available.</p></div>`);
   $('#saveSettings').onclick=()=>{state.name=$('#name').value.trim()||'Apprentice';view.courseId=$('#setCourse').value;save();toast('Settings saved');render()};
