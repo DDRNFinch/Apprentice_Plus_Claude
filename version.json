@@ -1,13 +1,10 @@
 {
-  "version": "V2.4 Phase 6",
-  "build": "V2.4 Phase 6",
+  "version": "V2.4 Phase 6 Fix 1",
+  "build": "V2.4 Phase 6 Fix 1",
   "whatsNew": [
-    "Unified the guided assignment journey across every course.",
-    "Opening an assignment now resumes its exact current workflow stage.",
-    "Supporting evidence in progress reopens the selected TA, PA or WT route.",
-    "Ready, downloaded and uploaded assignments open the correct evidence screen.",
-    "RPL assignments skip directly to the next non-RPL assignment.",
-    "Added automatic migration for existing learner progress and workflow records.",
-    "Updated offline caching so the final integrated build replaces earlier phases."
+    "Fixed Mark as uploaded remaining disabled after downloading evidence on mobile.",
+    "The downloaded workflow state is now saved before the browser download starts.",
+    "The Evidence Ready screen refreshes immediately after the download is prepared.",
+    "Mark as uploaded can now be confirmed after the learner uploads evidence externally."
   ]
 }
