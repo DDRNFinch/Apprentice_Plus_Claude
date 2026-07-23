@@ -1,5 +1,5 @@
-const VERSION='6.5';
-const CACHE=`applus-${VERSION}-course-dashboard`;
+const VERSION='6.6';
+const CACHE=`applus-${VERSION}-support-choice`;
 const CORE=['./','index.html','app.css','rewards.css','developer.css','notifications.css','cards.css','page-help.css','my-cards.css','whats-new.css','simple-overrides.css','reward-apps.css','badge-celebration.css','badge-fix.css','mate-v2.css','academy-challenge.css','explosive-badges.css','quiz-slides.css','academy-training.css','epa.css','revision-packs.css','documents-compact.css','accessibility.css','learner-notes.css','app.js','courses.js','academy-questions.js','advanced-academy.js','functional-skills-20.js','academy-training.js','epa.js','revision-packs.js','trade-revision.js','accessibility.js','learner-notes.js','manifest.json','version.json','logo.png','icon-192.png','icon-512.png'];
 
 self.addEventListener('install',event=>{
